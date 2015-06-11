@@ -32,7 +32,7 @@
              (and (>= l 0) (<= l 100)))
       (let [[r g b] (hsl2rgb h s l)
             rgb-string (str "rgb(" (str r) ", " (str g) ", " (str b) ")")]
-        (dom/set-text! rgb-value rgb-string)
+        (dom/set-text! rgb-preview rgb-string)
         (dom/set-styles! rgb-preview {:background-color rgb-string})))))
 
 ;; (defn init []
