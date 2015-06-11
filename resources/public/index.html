@@ -1,15 +1,25 @@
 <!DOCTYPE html>
 <html>
 
-  <head>
     <title></title>
-  </head>
+	<link href="css/style.css" rel="stylesheet"/>
 
-  <body>
+	<div class="wrapper">
+		<div class="slider h"></div>
+		<div class="slider s"></div>
+		<div class="slider l"></div>
+	</div>
+	
+	<input id="h" name="" type="text" value=""/>
+	<input id="s" name="" type="text" value=""/>
+	<input id="l" name="" type="text" value=""/>
+	<button id="hsl2rgb" onclick="color_picker.core.convert_hsv_to_rgb()">HSL to RGB</button>
 
-  <script src="js/goog/base.js"></script>
-  <script src="js/cljs.js"></script>
-  <script type="text/javascript">goog.require("color_picker.core");</script>
-  </body>
+	<div id="RGB-value"></div>
+	<div id="RGB-preview"></div>
+
+	<script src="js/goog/base.js"></script>
+	<script src="js/cljs.js"></script>
+	<script type="text/javascript">goog.require("color_picker.core");</script>
 
 </html>
