@@ -69,11 +69,9 @@
         height (.-height imageData)
         pallete (generate-pallete hsla width height type)]
     ;(set! (.-data imageData) (js/Uint8ClampedArray. (clj->js pallete)))
-    ;(.log js/console  (-> imageData .-data .-length))
     (doseq [h (range (-> imageData .-data .-length))]
       (aset (.-data imageData) h
             (nth pallete h)))
-    ;(.log js/console imageData)
     ))
 
 
