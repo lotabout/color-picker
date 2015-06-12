@@ -30,7 +30,7 @@
   [hsla val type]
   (assoc hsla type val))
 
-(defn iterate-line
+#_(defn iterate-line
   "generate one line of gradient"
   [hsla, length, type, func]
   (let [limit (case type
@@ -43,7 +43,7 @@
         value-map (range 0 limit step)]
     (mapcat func value-map)))
 
-(defn generate-line-gradient
+#_(defn generate-line-gradient
   [hsla, width, type]
   (iterate-line hsla
                 width
@@ -52,7 +52,7 @@
                   (let [rgba-map (hsl2rgb (change-hsla hsla val type))]
                     [(rgba-map :r) (rgba-map :g) (rgba-map :b) (rgba-map :a)]))))
 
-(defn generate-pallete
+#_(defn generate-palette
   "generate one 2D palette
   type: [type_horizontal, type_vertical], for example: [:s :v]"
   [hsla, width, height, type]
@@ -62,18 +62,63 @@
                                           width
                                           (type 1)))))
 
-(defn generate-pallete-image
-  "generate one 2D pallete image"
+#_(defn generate-palette-image
+  "generate one 2D palette image"
   [imageData, hsla, type]
   (let [width (.-width imageData)
         height (.-height imageData)
-        pallete (generate-pallete hsla width height type)]
-    ;(set! (.-data imageData) (js/Uint8ClampedArray. (clj->js pallete)))
+        palette (generate-palette hsla width height type)]
+    ;(set! (.-data imageData) (js/Uint8ClampedArray. (clj->js palette)))
     (doseq [h (range (-> imageData .-data .-length))]
       (aset (.-data imageData) h
-            (nth pallete h)))
+            (nth palette h)))
     ))
 
+(defn iterate-2d!
+  "iterate over every pixel in the imageData
+   func should be (func imageData row col)"
+  [imageData, func]
+  (let [width (.-width imageData)
+        height (.-height imageData)]
+    (loop [row 0 col 0]
+      (let [next-row (if (= col width) (+ row 1) row)
+            next-col (if (= col width) 0 (+ col 1))]
+        (when-not (and (>= col width) (>= row height))
+          (func imageData row col)
+          (recur next-row next-col))))))
+
+(defn get-step [length type]
+  (/ (case type
+       :h 360
+       :s 100
+       :l 100
+       :a 100
+       length) length))
+
+(defn generate-draw-palette-func
+  "draw a point in the palette"
+  [hsla, width, height, type-x, type-y]
+  (let [step-x (get-step width type-x)
+        step-y (get-step height type-y)]
+    #_(.log js/console (clj->js [hsla width height type-x type-y step-x step-y]))
+    (fn [imageData row col]
+      (let [new-hsla (conj hsla [type-x (* col step-x)] [type-y (* row step-y)])
+            start-point (* (+ (* row width) col) 4)
+            {:keys [r g b a]} (hsl2rgb new-hsla)]
+        #_(.log js/console (clj->js [row col start-point width]))
+        (aset (.-data imageData) start-point r)
+        (aset (.-data imageData) (+ start-point 1) g)
+        (aset (.-data imageData) (+ start-point 2) b)
+        (aset (.-data imageData) (+ start-point 3) a)))))
+
+(defn draw-2d-palette!
+  "modify the imageData to the palette
+   (draw-2d-palette imageData {:h 90 :s 90 :l 90 :a 100} [:s :l])"
+  [imageData, hsla, types]
+  (let [width (.-width imageData)
+        height (.-height imageData)]
+    (iterate-2d! imageData
+                 (generate-draw-palette-func hsla width height (types 0) (types 1)))))
 
 #_(defn ^:export convert-hsv-to-rgb []
   (let [h (int (dom/value (dom/by-id "h")))
@@ -89,18 +134,33 @@
         (dom/set-text! rgb-preview rgb-string)
         (dom/set-styles! rgb-preview {:background-color rgb-string})))))
 
-(defn draw-2d-pallete []
-  (let [canvas-d2 (dom/by-id "d2")
-        ctx (.getContext canvas-d2 "2d")
-        imageData (.getImageData ctx 0 0 (.-width canvas-d2) (.-height canvas-d2))]
-    (generate-pallete-image imageData {:h 90 :s 90 :l 90 :a 90} [:s :l])
+(defn draw-palette [id hsla types]
+  (let [canvas (dom/by-id id)
+        ctx (.getContext canvas "2d")
+        imageData (.getImageData ctx 0 0 (.-width canvas) (.-height canvas))]
+    (draw-2d-palette! imageData hsla types)
     (.putImageData ctx imageData, 0, 0)))
 
-;; (defn init []
-;;   (set! (.-onclick (dom/by-id "hsl2rgb") convert-hsv-to-rgb)))
+(defn ^:export draw-hsv []
+  (let [h (int (dom/value (dom/by-id "h")))
+        s (int (dom/value (dom/by-id "s")))
+        l (int (dom/value (dom/by-id "l")))
+        a (int (dom/value (dom/by-id "a")))
+        rgb-preview (dom/by-id "RGB-preview")
+        [types-left types-right]
+        (cond
+          (.-checked (dom/by-id "radio_h")) [[:s :l] [:unknown :h]]
+          (.-checked (dom/by-id "radio_s")) [[:h :l] [:unknown :s]]
+          (.-checked (dom/by-id "radio_l")) [[:h :s] [:unknown :l]])]
+    (when (and (and (>= h 0) (< h 360))
+             (and (>= s 0) (<= s 100))
+             (and (>= l 0) (<= l 100)))
+      (draw-palette "d2" {:h h :s s :l l :a a} types-left)
+      (draw-palette "d1" {:h h :s s :l l :a a} types-right)
+      #_(dom/set-text! rgb-preview rgb-string)
+      #_(dom/set-styles! rgb-preview {:background-color rgb-string}))))
 
 
-;; (set! (.-onload js/window) init)
+#_(draw-palette)
 
-;; (.log js/console (generate-pallete [90 90 90 0] 100 [:s :v]))
-(draw-2d-pallete)
+#_(.log js/console (dom/value (dom/sel "input[name=HSL]:checked")))
