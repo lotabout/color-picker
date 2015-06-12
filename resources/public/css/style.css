@@ -21,6 +21,19 @@ canvas {
     height: 100%;
 }
 
+.palette,
+.horizontal-line,
+.vertical-line,
+canvas,
+.canvas {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
 .canvas {
     display: inline-block;
     border: 1px solid #444;

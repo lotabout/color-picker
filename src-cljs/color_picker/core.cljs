@@ -168,7 +168,8 @@
   [context, row, width, hsla, type-x]
   (let [gradient (.createLinearGradient context 0 row (- width 1) row)
         limit (get-limit type-x)]
-    (doseq [stop (range 0 1 (/ 1 (/ limit 10)))]
+    (doseq [stop (range 0 1.01 (cond (= type-x :h) (/ 1 7)
+                                  :else 1))]
       #_(.log js/console (clj->js [stop (hsla-map-to-string (conj hsla [type-x (* stop limit)]))]))
       (.addColorStop gradient stop (hsla-map-to-string (conj hsla [type-x (* stop limit)]))))
     (set! (.-fillStyle context) gradient)
@@ -310,6 +311,9 @@
                          (ev/listen! js/document :mouseup
                                      (fn [e]
                                        (ev/unlisten! js/document :mousemove)))))))
+;;; inhibit the default drag effect by HTML
+(set! (.-ondragstar (dom/by-id "d2")) (fn [] false))
+(set! (.-ondragstar (dom/by-id "d2-div")) (fn [] false))
 
 
 (ev/listen! (dom/by-id "d1")
@@ -331,6 +335,9 @@
                          (ev/listen! js/document :mouseup
                                      (fn [e]
                                        (ev/unlisten! js/document :mousemove)))))))
+(set! (.-ondragstar (dom/by-id "d1")) (fn [] false))
+(set! (.-ondragstar (dom/by-id "d1-div")) (fn [] false))
+
 
 (defn draw-hsv []
   (let [hsla (get-current-hsla)
