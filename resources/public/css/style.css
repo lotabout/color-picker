@@ -1,0 +1,74 @@
+.wrapper {
+    padding: 10px;
+    width: 500px;
+    margin: 0 auto;
+}
+
+.slider {
+    margin: 10px 0px;
+    border: 1px solid #333;
+    height: 30px;
+}
+
+#RGB-preview {
+    width: 300px;
+    height: 50px;
+    border: 1px solid #333;
+}
+
+canvas {
+    width: 100%;
+    height: 100%;
+}
+
+.canvas {
+    display: inline-block;
+    border: 1px solid #444;
+    position: relative;
+}
+
+#d2-div {
+    width: 250px;
+    height: 250px;
+}
+
+#d1-div {
+    width: 25px;
+    height: 250px;
+}
+
+.canvas .horizontal-line,
+.canvas .vertical-line {
+    position: absolute;
+    background: black;
+    border-style: solid;
+    border-color: white;
+}
+
+.canvas .horizontal-line {
+    width: 100%;
+    height: 1px;
+    top: 50%;
+    border-width: 1px 0px;
+}
+
+.canvas .vertical-line {
+    width: 1px;
+    height: 100%;
+    left: 50%;
+    top: 0%;
+    border-width: 0px 1px;
+}
+
+.h {
+    background: linear-gradient(to right, hsla(0, 100%, 50%, 1), hsla(360, 100%, 50%, 1));
+}
+
+.s {
+    background: linear-gradient(to right, hsla(0, 0%, 50%, 1), hsla(0, 100%, 50%, 1));
+}
+
+.l {
+    background: linear-gradient(to right, hsla(146, 100%, 0%, 1), hsla(146, 100%, 20%, 1), hsla(146, 100%, 40%, 1),
+			       hsla(146, 100%, 60%, 1), hsla(146, 100%, 80%, 1), hsla(146, 100%, 100%, 1));
+}

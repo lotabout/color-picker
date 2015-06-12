@@ -1,0 +1,7 @@
+{"version":3,
+ "file":
+ "/c:/Users/zhang_ji/repos/color-picker/resources/public/js/color_picker/connect.js",
+ "sources":["connect.cljs"],
+ "lineCount":8,
+ "mappings":";AAAA;;;;AAGA,uCAAA,vCAACA",
+ "names":["clojure.browser.repl/connect"]}
