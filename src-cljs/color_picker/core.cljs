@@ -222,9 +222,7 @@
      :l (cond (and (>= l 0) (<= l 100)) l
               (< l 0) 0
               (> l 100) 100)
-     :a (cond (and (>= a 0) (<= a 100)) a
-              (< a 0) 0
-              (> a 100) 100)}))
+     :a (if (and (>= a 0) (<= a 100)) a 100)}))
 
 (defn get-current-types []
   (cond
@@ -256,9 +254,10 @@
 (defn pick-color-left
   "pick color from the left context at (x, y) and change the background color of preview"
   [x, y]
-  (let [rgb-preview (dom/by-id "RGB-preview")
+  (let [rgb-value (dom/by-id "RGB-value")
+        rgb-preview (dom/by-id "RGB-preview")
         rgb-string (rgba-map-to-string (pick-color @left-context x y))]
-    (dom/set-text! rgb-preview rgb-string)
+    (dom/set-text! rgb-value rgb-string)
     (dom/set-styles! rgb-preview {:background-color rgb-string})))
 
 ;;; ================================================================================
