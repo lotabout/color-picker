@@ -1,6 +1,6 @@
 {"version":3,
  "file":
- "/c:/Users/zhang_ji/repos/color-picker/resources/public/js/color_picker/connect.js",
+ "/home/ice/repos/color-picker/resources/public/js/color_picker/connect.js",
  "sources":["connect.cljs"],
  "lineCount":8,
  "mappings":";AAAA;;;;AAGA,uCAAA,vCAACA",

@@ -168,7 +168,8 @@
   [context, row, width, hsla, type-x]
   (let [gradient (.createLinearGradient context 0 row (- width 1) row)
         limit (get-limit type-x)]
-    (doseq [stop (range 0 1 (/ 1 (/ limit 10)))]
+    (doseq [stop (range 0 1.01 (cond (= type-x :h) (/ 1 7)
+                                  :else 1))]
       #_(.log js/console (clj->js [stop (hsla-map-to-string (conj hsla [type-x (* stop limit)]))]))
       (.addColorStop gradient stop (hsla-map-to-string (conj hsla [type-x (* stop limit)]))))
     (set! (.-fillStyle context) gradient)
@@ -255,9 +256,10 @@
 (defn pick-color-left
   "pick color from the left context at (x, y) and change the background color of preview"
   [x, y]
-  (let [rgb-preview (dom/by-id "RGB-preview")
+  (let [rgb-value (dom/by-id "RGB-value")
+        rgb-preview (dom/by-id "RGB-preview")
         rgb-string (rgba-map-to-string (pick-color @left-context x y))]
-    (dom/set-text! rgb-preview rgb-string)
+    (dom/set-text! rgb-value rgb-string)
     (dom/set-styles! rgb-preview {:background-color rgb-string})))
 
 ;;; ================================================================================
@@ -310,6 +312,9 @@
                          (ev/listen! js/document :mouseup
                                      (fn [e]
                                        (ev/unlisten! js/document :mousemove)))))))
+;;; inhibit the default drag effect by HTML
+(set! (.-ondragstar (dom/by-id "d2")) (fn [] false))
+(set! (.-ondragstar (dom/by-id "d2-div")) (fn [] false))
 
 
 (ev/listen! (dom/by-id "d1")
@@ -331,6 +336,9 @@
                          (ev/listen! js/document :mouseup
                                      (fn [e]
                                        (ev/unlisten! js/document :mousemove)))))))
+(set! (.-ondragstar (dom/by-id "d1")) (fn [] false))
+(set! (.-ondragstar (dom/by-id "d1-div")) (fn [] false))
+
 
 (defn draw-hsv []
   (let [hsla (get-current-hsla)
@@ -374,3 +382,4 @@
 (dom/append! (dom/by-id "d1-div") "<div class='horizontal-line'></div>")
 
 (draw-hsv)
+
