@@ -200,28 +200,38 @@
 
 ;;; ================================================================================
 (def left-context (atom (.getContext (dom/by-id "d2") "2d")))
+(def right-context (atom (.getContext (dom/by-id "d1") "2d")))
 
 #_(defn refresh-imageData [left-context]
   (let [canvas (dom/by-id "d2")
         ctx (.getContext canvas "2d")]
     (reset! left-context ctx)))
 
-(defn ^:export draw-hsv []
+(defn get-current-hsla []
   (let [h (int (dom/value (dom/by-id "h")))
         s (int (dom/value (dom/by-id "s")))
         l (int (dom/value (dom/by-id "l")))
-        a (int (dom/value (dom/by-id "a")))
-        rgb-preview (dom/by-id "RGB-preview")
-        [types-left types-right]
-        (cond
-          (.-checked (dom/by-id "radio_h")) [[:s :l] [:unknown :h]]
-          (.-checked (dom/by-id "radio_s")) [[:h :l] [:unknown :s]]
-          (.-checked (dom/by-id "radio_l")) [[:h :s] [:unknown :l]])]
-    (when (and (and (>= h 0) (< h 360))
-             (and (>= s 0) (<= s 100))
-             (and (>= l 0) (<= l 100)))
-      (draw-palette-by-gradient "d2" {:h h :s s :l l :a a} types-left)
-      (draw-palette-by-gradient "d1" {:h h :s s :l l :a a} types-right))))
+        a (int (dom/value (dom/by-id "a")))]
+    {:h (cond (and (>= h 0) (< h 360)) h
+              (< h 0) 0
+              (> h 360) 359)
+     :s (cond (and (>= s 0) (<= s 100)) s
+              (< s 0) 0
+              (> s 100) 100)
+     :l (cond (and (>= l 0) (<= l 100)) l
+              (< l 0) 0
+              (> l 100) 100)
+     :a (cond (and (>= a 0) (<= a 100)) a
+              (< a 0) 0
+              (> a 100) 100)}))
+
+(defn get-current-types []
+  (cond
+    (.-checked (dom/by-id "radio_h")) [[:s :l] [:unknown :h]]
+    (.-checked (dom/by-id "radio_s")) [[:h :l] [:unknown :s]]
+    (.-checked (dom/by-id "radio_l")) [[:h :s] [:unknown :l]]))
+
+
 
 
 (defn canvas-fit-to-container
@@ -251,16 +261,34 @@
     (dom/set-styles! rgb-preview {:background-color rgb-string})))
 
 ;;; ================================================================================
-(defn left-reset-pointer [x y]
+(defn left-reset-pointer [context x y]
   (let [horizontal-line (sel/sel "#d2-div > div.horizontal-line")
-        vertical-line (sel/sel "#d2-div > div.vertical-line")]
-    (dom/set-styles! horizontal-line {:top (str y "px")})
-    (dom/set-styles! vertical-line {:left (str x "px")})
+        vertical-line (sel/sel "#d2-div > div.vertical-line")
+        width-of-canvas (-> context .-canvas .-width)
+        height-of-canvas (-> context .-canvas .-height)
+        x (cond (< x 0) 0 (< x width-of-canvas) x :else width-of-canvas)
+        y (cond (< y 0) 0 (< y height-of-canvas) y :else height-of-canvas)
+        [left-types right-types] (get-current-types)
+        input-box-1 (dom/by-id (name (left-types 0)))
+        input-box-2 (dom/by-id (name (left-types 1)))]
+    (dom/set-styles! horizontal-line {:top (str (- y 3) "px")})
+    (dom/set-styles! vertical-line {:left (str (- x 3) "px")})
+    (set! (.-value input-box-1) (str (int (/ (* x (get-limit (left-types 0))) width-of-canvas))))
+    (set! (.-value input-box-2) (str (int (/ (* y (get-limit (left-types 1))) height-of-canvas))))
+    (if (or (= (left-types 0) :h) (= (left-types 1) :h))
+      (draw-palette-by-gradient "d1" (get-current-hsla) right-types))
     (pick-color-left x y)))
 
-(defn right-reset-pointer [x y]
-  (let [horizontal-line (sel/sel "#d1-div > div.horizontal-line")]
-    (dom/set-styles! horizontal-line {:top (str y "px")})))
+(defn right-reset-pointer [context x y]
+  (let [horizontal-line (sel/sel "#d1-div > div.horizontal-line")
+        length-of-canvas (-> context .-canvas .-height)
+        y (cond (< y 0) 0 (< y length-of-canvas) y :else length-of-canvas)
+        [left-types [unknown right-type]] (get-current-types)
+        input-box (dom/by-id (name right-type))]
+    (dom/set-styles! horizontal-line {:top (str (- y 3) "px")})
+    ;; reset the value of inputbox
+    (set! (.-value input-box) (str (int (/ (* y (get-limit right-type)) length-of-canvas))))
+    (draw-palette-by-gradient "d2" (get-current-hsla) left-types)))
 
 ;;; add mouse listener
 (ev/listen! (dom/by-id "d2")
@@ -269,17 +297,20 @@
               (this-as this
                        (let [x (:offsetX evt)
                              y (:offsetY evt)]
-                         (left-reset-pointer x y)
+                         (left-reset-pointer @left-context x y)
 
-                         (ev/listen! (:target evt) :mousemove
+                         (ev/listen! js/document :mousemove
                                      (fn [evt]
-                                       (let [x (:offsetX evt)
-                                             y (:offsetY evt)]
-                                         (left-reset-pointer x y))))
-
+                                       (let [parent (dom/by-id "d2-div")
+                                             offset-left (+ (.-offsetLeft parent) (.-clientLeft parent))
+                                             offset-top (+ (.-offsetTop parent) (.-clientTop parent))
+                                             x (- (:clientX evt) offset-left)
+                                             y (- (:clientY evt) offset-top) ]
+                                         (left-reset-pointer @left-context x y))))
                          (ev/listen! js/document :mouseup
                                      (fn [e]
-                                       (ev/unlisten! (:target evt) :mousemove)))))))
+                                       (ev/unlisten! js/document :mousemove)))))))
+
 
 (ev/listen! (dom/by-id "d1")
             :mousedown
@@ -287,17 +318,48 @@
               (this-as this
                        (let [x (:offsetX evt)
                              y (:offsetY evt)]
-                         (right-reset-pointer x y)
+                         (right-reset-pointer @right-context x y)
 
-                         (ev/listen! (:target evt) :mousemove
+                         (ev/listen! js/document :mousemove
                                      (fn [evt]
-                                       (let [x (:offsetX evt)
-                                             y (:offsetY evt)]
-                                         (right-reset-pointer x y))))
-
+                                       (let [parent (dom/by-id "d1-div")
+                                             offset-left (+ (.-offsetLeft parent) (.-clientLeft parent))
+                                             offset-top (+ (.-offsetTop parent) (.-clientTop parent))
+                                             x (- (:clientX evt) offset-left)
+                                             y (- (:clientY evt) offset-top) ]
+                                         (right-reset-pointer @right-context x y))))
                          (ev/listen! js/document :mouseup
                                      (fn [e]
-                                       (ev/unlisten! (:target evt) :mousemove)))))))
+                                       (ev/unlisten! js/document :mousemove)))))))
+
+(defn draw-hsv []
+  (let [hsla (get-current-hsla)
+        rgb-preview (dom/by-id "RGB-preview")
+        [types-left types-right]
+        (cond
+          (.-checked (dom/by-id "radio_h")) [[:s :l] [:unknown :h]]
+          (.-checked (dom/by-id "radio_s")) [[:h :l] [:unknown :s]]
+          (.-checked (dom/by-id "radio_l")) [[:h :s] [:unknown :l]])
+        width-of-canvas (-> @left-context .-canvas .-width)
+        height-of-canvas (-> @left-context .-canvas .-height)
+        length-of-canvas (-> @right-context .-canvas .-height)]
+    (draw-palette-by-gradient "d2" hsla types-left)
+    (draw-palette-by-gradient "d1" hsla types-right)
+    (right-reset-pointer @right-context
+                         0
+                         (int (/ (* (hsla (types-right 1)) length-of-canvas)
+                                 (get-limit (types-right 1)))))
+    (left-reset-pointer @left-context
+                        (int (/ (* (hsla (types-left 0)) width-of-canvas)
+                                (get-limit (types-left 0))))
+                        (int (/ (* (hsla (types-left 1)) height-of-canvas)
+                                (get-limit (types-left 1)))))
+    ))
+
+(ev/listen! (dom/by-class "hsl_radio")
+            :click
+            (fn [evt]
+              (draw-hsv)))
 
 ;;; ================================================================================
 ;;; Initialization
@@ -310,3 +372,5 @@
 (dom/append! (dom/by-id "d2-div") "<div class='vertical-line'></div>")
 
 (dom/append! (dom/by-id "d1-div") "<div class='horizontal-line'></div>")
+
+(draw-hsv)
