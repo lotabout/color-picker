@@ -1,5 +1,7 @@
 (ns color-picker.core
-  (:require [domina :as dom]))
+  (:require [domina :as dom]
+            [domina.events :as ev]
+            [domina.css :as sel]))
 
 (defn hsl2rgb
   "convert H: [0, 360) S: [0 100] V: [0 100] A:[0 100] to RGBA [0 255]"
@@ -157,6 +159,9 @@
   (str "hsla(" (str (:h hsla)) ", " (str (:s hsla)) "%, "
        (str (:l hsla)) "%, " (str (/ (:a hsla) 100)) ")"))
 
+(defn rgba-map-to-string [rgba]
+  (str "rgba(" (str (:r rgba)) ", " (str (:g rgba)) ", "
+       (str (:b rgba)) ", " (str (/ (Math.round (/ (* (:a rgba) 100) 255)) 100)) ")"))
 
 (defn draw-gradient-column!
   "construct a gradient line with 1px height"
@@ -193,6 +198,14 @@
     (.clearRect ctx 0 0 width height)
     (draw-palette-gradient! ctx hsla types)))
 
+;;; ================================================================================
+(def left-context (atom (.getContext (dom/by-id "d2") "2d")))
+
+#_(defn refresh-imageData [left-context]
+  (let [canvas (dom/by-id "d2")
+        ctx (.getContext canvas "2d")]
+    (reset! left-context ctx)))
+
 (defn ^:export draw-hsv []
   (let [h (int (dom/value (dom/by-id "h")))
         s (int (dom/value (dom/by-id "s")))
@@ -208,6 +221,92 @@
              (and (>= s 0) (<= s 100))
              (and (>= l 0) (<= l 100)))
       (draw-palette-by-gradient "d2" {:h h :s s :l l :a a} types-left)
-      (draw-palette-by-gradient "d1" {:h h :s s :l l :a a} types-right)
-      #_(dom/set-text! rgb-preview rgb-string)
-      #_(dom/set-styles! rgb-preview {:background-color rgb-string}))))
+      (draw-palette-by-gradient "d1" {:h h :s s :l l :a a} types-right))))
+
+
+(defn canvas-fit-to-container
+  [canvas]
+  (set! (-> canvas .-style .-height) "100%")
+  (set! (-> canvas .-style .-width) "100%")
+  (set! (-> canvas .-width) (.-offsetWidth canvas))
+  (set! (-> canvas .-height) (.-offsetHeight canvas)))
+
+;; (canvas-fit-to-container (dom/by-id "d2"))
+;; (canvas-fit-to-container (dom/by-id "d1"))
+(defn pick-color
+  "pick color of context at (x, y)"
+  [context, x, y]
+  (let [imageData (.-data (.getImageData context x y 1 1))]
+    {:r (aget imageData 0)
+     :g (aget imageData 1)
+     :b (aget imageData 2)
+     :a (aget imageData 3)}))
+
+(defn pick-color-left
+  "pick color from the left context at (x, y) and change the background color of preview"
+  [x, y]
+  (let [rgb-preview (dom/by-id "RGB-preview")
+        rgb-string (rgba-map-to-string (pick-color @left-context x y))]
+    (dom/set-text! rgb-preview rgb-string)
+    (dom/set-styles! rgb-preview {:background-color rgb-string})))
+
+;;; ================================================================================
+(defn left-reset-pointer [x y]
+  (let [horizontal-line (sel/sel "#d2-div > div.horizontal-line")
+        vertical-line (sel/sel "#d2-div > div.vertical-line")]
+    (dom/set-styles! horizontal-line {:top (str y "px")})
+    (dom/set-styles! vertical-line {:left (str x "px")})
+    (pick-color-left x y)))
+
+(defn right-reset-pointer [x y]
+  (let [horizontal-line (sel/sel "#d1-div > div.horizontal-line")]
+    (dom/set-styles! horizontal-line {:top (str y "px")})))
+
+;;; add mouse listener
+(ev/listen! (dom/by-id "d2")
+            :mousedown
+            (fn [evt]
+              (this-as this
+                       (let [x (:offsetX evt)
+                             y (:offsetY evt)]
+                         (left-reset-pointer x y)
+
+                         (ev/listen! (:target evt) :mousemove
+                                     (fn [evt]
+                                       (let [x (:offsetX evt)
+                                             y (:offsetY evt)]
+                                         (left-reset-pointer x y))))
+
+                         (ev/listen! js/document :mouseup
+                                     (fn [e]
+                                       (ev/unlisten! (:target evt) :mousemove)))))))
+
+(ev/listen! (dom/by-id "d1")
+            :mousedown
+            (fn [evt]
+              (this-as this
+                       (let [x (:offsetX evt)
+                             y (:offsetY evt)]
+                         (right-reset-pointer x y)
+
+                         (ev/listen! (:target evt) :mousemove
+                                     (fn [evt]
+                                       (let [x (:offsetX evt)
+                                             y (:offsetY evt)]
+                                         (right-reset-pointer x y))))
+
+                         (ev/listen! js/document :mouseup
+                                     (fn [e]
+                                       (ev/unlisten! (:target evt) :mousemove)))))))
+
+;;; ================================================================================
+;;; Initialization
+
+;;; change the style of canvas to fit to their parent
+(doall (map canvas-fit-to-container (.getElementsByTagName js/document "canvas")))
+
+;;; add cross line.
+(dom/append! (dom/by-id "d2-div") "<div class='horizontal-line'></div>")
+(dom/append! (dom/by-id "d2-div") "<div class='vertical-line'></div>")
+
+(dom/append! (dom/by-id "d1-div") "<div class='horizontal-line'></div>")
