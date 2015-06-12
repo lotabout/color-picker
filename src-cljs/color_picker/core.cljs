@@ -25,7 +25,10 @@
             (for [[k v] {:r (+ r1 m), :g (+ g1 m), :b (+ b1 m), :a a}]
               [k (int (* v 255))])))))
 
-(defn change-hsla
+;;; ================================================================================
+;;; Generate all pixel RGB data and assign them to the imageData
+
+#_(defn change-hsla
   "change the value of hsla to a new value"
   [hsla val type]
   (assoc hsla type val))
@@ -74,6 +77,9 @@
             (nth palette h)))
     ))
 
+;;; ================================================================================
+;;; Try to fill the RGB value of every pixel of imageData directly
+
 (defn iterate-2d!
   "iterate over every pixel in the imageData
    func should be (func imageData row col)"
@@ -87,13 +93,16 @@
           (func imageData row col)
           (recur next-row next-col))))))
 
+(defn get-limit [type]
+  (case type
+    :h 360
+    :s 100
+    :l 100
+    :a 100
+    100))
+
 (defn get-step [length type]
-  (/ (case type
-       :h 360
-       :s 100
-       :l 100
-       :a 100
-       length) length))
+  (/  (get-limit type) length))
 
 (defn generate-draw-palette-func
   "draw a point in the palette"
@@ -134,12 +143,55 @@
         (dom/set-text! rgb-preview rgb-string)
         (dom/set-styles! rgb-preview {:background-color rgb-string})))))
 
-(defn draw-palette [id hsla types]
+(defn draw-palette-by-pixel [id hsla types]
   (let [canvas (dom/by-id id)
         ctx (.getContext canvas "2d")
         imageData (.getImageData ctx 0 0 (.-width canvas) (.-height canvas))]
     (draw-2d-palette! imageData hsla types)
     (.putImageData ctx imageData, 0, 0)))
+
+;;; ================================================================================
+;;; Use linearGradient to generate color.
+
+(defn hsla-map-to-string [hsla]
+  (str "hsla(" (str (:h hsla)) ", " (str (:s hsla)) "%, "
+       (str (:l hsla)) "%, " (str (/ (:a hsla) 100)) ")"))
+
+
+(defn draw-gradient-column!
+  "construct a gradient line with 1px height"
+  [context, row, width, hsla, type-x]
+  (let [gradient (.createLinearGradient context 0 row (- width 1) row)
+        limit (get-limit type-x)]
+    (doseq [stop (range 0 1 (/ 1 (/ limit 10)))]
+      #_(.log js/console (clj->js [stop (hsla-map-to-string (conj hsla [type-x (* stop limit)]))]))
+      (.addColorStop gradient stop (hsla-map-to-string (conj hsla [type-x (* stop limit)]))))
+    (set! (.-fillStyle context) gradient)
+    (.fillRect context 0 row width 1)))
+
+(defn draw-gradient-row!
+  "draw a gradient rect"
+  [context, width, height, hsla, types, draw-line-func]
+  (let [type-x (types 0)
+        type-y (types 1)
+        step (get-step height type-y)]
+    #_(.log js/console (clj->js [types step width height]))
+    (doseq [row (range height)]
+      (draw-line-func context row width (conj hsla [type-y (* row step)]) type-x))))
+
+(defn draw-palette-gradient!
+  [context hsla types]
+  (let [width (-> context .-canvas .-clientWidth)
+        height (-> context .-canvas .-clientHeight)]
+    (draw-gradient-row! context width height hsla types draw-gradient-column!)))
+
+(defn draw-palette-by-gradient [id hsla types]
+  (let [canvas (dom/by-id id)
+        ctx (.getContext canvas "2d")
+        width (-> ctx .-canvas .-clientWidth)
+        height (-> ctx .-canvas .-clientHeight)]
+    (.clearRect ctx 0 0 width height)
+    (draw-palette-gradient! ctx hsla types)))
 
 (defn ^:export draw-hsv []
   (let [h (int (dom/value (dom/by-id "h")))
@@ -155,12 +207,7 @@
     (when (and (and (>= h 0) (< h 360))
              (and (>= s 0) (<= s 100))
              (and (>= l 0) (<= l 100)))
-      (draw-palette "d2" {:h h :s s :l l :a a} types-left)
-      (draw-palette "d1" {:h h :s s :l l :a a} types-right)
+      (draw-palette-by-gradient "d2" {:h h :s s :l l :a a} types-left)
+      (draw-palette-by-gradient "d1" {:h h :s s :l l :a a} types-right)
       #_(dom/set-text! rgb-preview rgb-string)
       #_(dom/set-styles! rgb-preview {:background-color rgb-string}))))
-
-
-#_(draw-palette)
-
-#_(.log js/console (dom/value (dom/sel "input[name=HSL]:checked")))
